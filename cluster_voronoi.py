@@ -13,14 +13,15 @@ from scipy.cluster.hierarchy import fclusterdata
 
 nb_points = 100
 dim = 2
+euclid_factor = 1
 
 properties = {
-    'region_vert_count': { 'pos': 0, 'factor': 1},
-    'region_area': { 'pos': 1, 'threshold': 4, 'factor': 1}
+    'region_vert': { 'pos': 0, 'factor': 0},
+    'region_area': { 'pos': 1, 'factor': 1}
     }
 nb_prop = len(properties)
 
-nb_clusters = 10
+nb_clusters = 25
 
 colors = np.random.random((nb_clusters, 3))
 
@@ -32,9 +33,9 @@ limit_points = [[100, 0],[-100, 0],[0, 100],[0, -100]]
 
 points = np.random.random((nb_points + nb_limit_points, 
                            dim + nb_prop))
-points2 = np.random.random((nb_points + nb_limit_points, 
-                           dim + nb_prop))
-points = (points + points2) / 2.0
+#points2 = np.random.random((nb_points + nb_limit_points, 
+#                           dim + nb_prop))
+#points = (points + points2) / 2.0
 
 for i in range(4):
     points[nb_points + i, :dim] = limit_points[i]
@@ -46,20 +47,27 @@ def PolyArea(x,y):
 
 facets = np.empty((nb_points + nb_limit_points))
 areas = np.empty((nb_points + nb_limit_points))
+
 for p in range(nb_points):
     facets[p] = len(vor.regions[vor.point_region[p]])
     verts = vor.vertices[vor.regions[vor.point_region[p]]]
     areas[p] = PolyArea(verts[:,0], verts[:,1])
-    
-points[:, dim + properties['region_vert_count']['pos']] = facets
+
+points[:, dim + properties['region_vert']['pos']] = facets
+points[:, dim + properties['region_area']['pos']] = areas
 
 def MyMetric(p1, p2):
     diff = p1[:-nb_prop] - p2[:-nb_prop]
+    
+    diffVert = (p1[dim + properties['region_vert']['pos']]
+                - p2[dim + properties['region_vert']['pos']])
+    
     diffArea = (p1[dim + properties['region_area']['pos']]
                 - p2[dim + properties['region_area']['pos']])
-    if np.abs(diffArea) < properties['region_area']['threshold']:
-        diffArea = 0;
-    diff = diff + properties['region_area']['factor'] * diffArea
+    
+    diff = ( euclid_factor * diff
+            + properties['region_vert']['factor'] * diffVert
+            + properties['region_area']['factor'] * diffArea)
     return np.vdot(diff, diff) ** 0.5
 
 point_cluster = fclusterdata(points[:-nb_limit_points],
